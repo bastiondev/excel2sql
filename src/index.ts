@@ -3,3 +3,4 @@
  */
 
 export { workbookToSql } from './WorkbookToSql';
+export { sqlToWorkbook } from './SqlToWorkbook';

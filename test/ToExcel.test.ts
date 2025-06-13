@@ -7,7 +7,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
-import * as XLSX_STYLE from 'xlsx-style';
 import { sqlToWorkbook } from '../src/SqlToWorkbook';
 
 // Define the directory paths
@@ -18,7 +17,7 @@ const WORKBOOKS_DIR = path.join(__dirname, 'workbooks/toExcel');
 function loadWorkbook(filename: string): XLSX.WorkBook {
   const filePath = path.join(WORKBOOKS_DIR, filename);
   const fileData = fs.readFileSync(filePath);
-  return XLSX_STYLE.read(fileData, { type: 'buffer' });
+  return XLSX.read(fileData, { type: 'buffer', cellStyles: true });
 }
 
 // Helper function to compare workbooks
@@ -60,8 +59,6 @@ function compareWorkbooks(actual: XLSX.WorkBook, expected: XLSX.WorkBook): void 
           expect(actualCell?.t).toEqual(expectedCell?.t);
         }
         
-        // Note: The xlsx package doesn't fully support style comparison
-        // Styles must be verified manually by comparing the debug output file
       }
     }
   }
@@ -92,12 +89,7 @@ describe('sqlToWorkbook', () => {
       
       // Write debug output
       const debugPath = path.join(WORKBOOKS_DIR, `${testName}.debug.xlsx`);
-      XLSX.writeFile(result, debugPath);
-      
-      // Note: Style verification requires manual inspection
-      if (testName === 'StyledQuery') {
-        console.warn('\nNote: Cell styles must be verified manually by comparing the debug output file with the expected file.');
-      }
+      XLSX.writeFile(result, debugPath, {cellStyles: true});
       
       // Compare with expected workbook
       compareWorkbooks(result, expected);

@@ -97,3 +97,6 @@ dist
 
 # Temp excel files
 ~$*.xlsx
+
+# Ignore test debug files
+*.debug.xlsx

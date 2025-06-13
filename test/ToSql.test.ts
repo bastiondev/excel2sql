@@ -10,8 +10,8 @@ import * as XLSX from 'xlsx';
 import { workbookToSql } from '../src/WorkbookToSql';
 
 // Define the directory paths
-const CASES_DIR = path.join(__dirname, 'cases');
-const WORKBOOKS_DIR = path.join(__dirname, 'workbooks');
+const CASES_DIR = path.join(__dirname, 'cases/toSql');
+const WORKBOOKS_DIR = path.join(__dirname, 'workbooks/toSql');
 
 // Helper function to load a workbook
 function loadWorkbook(filename: string): XLSX.WorkBook {

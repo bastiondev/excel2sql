@@ -113,4 +113,242 @@ INSERT INTO table1 (col1, col2) VALUES ('50', '65');
 ```
 
 
+## SQL to Workbooks
 
+The SQL to Workbooks functionality utilizes a set of parameterized queries and references to queried data in the workbooks to populate an Excel workbook with data from the queries.
+
+### Iterative query reference:
+
+The iterative query reference allows for populating a range of cells with data from a query.  The query is executed and each row is copied down for the number of rows in the result.
+
+Example query:
+
+`data`:
+```sql
+SELECT id, name from table1;
+```
+
+Excel Template:
+
+|   | A  | B  |
+|---|----|----|
+| 1 | ?data.id | ?data.name |
+
+Given this data:
+
+| id | name |
+|----|----|
+| 1 | name1 |
+| 2 | name2 |
+| 3 | name3 |
+
+Resulting in:
+
+|   | A  | B  |
+|---|----|----|
+| 1 | 1  | name1 |
+| 2 | 2  | name2 |
+| 3 | 3  | name3 |
+
+### Direct query reference:
+
+The direct query reference allows for populating a cell with a specific cell of data from a query.  The query is executed and the result is written to the cell.
+
+Example query:
+
+`data`:
+```sql
+SELECT id, name from table1;
+```
+Given this data:
+
+| id | name |
+|----|----|
+| 1 | name1 |
+| 2 | name2 |
+| 3 | name3 |
+
+Excel Template:
+
+|   | A  | B  |
+|---|----|----|
+| 1 | ?data[0].id | ?data[0].name |
+| 2 | ?data[2].id | ?data[2].name |
+
+Resulting in:
+
+|   | A  | B  |
+|---|----|----|
+| 1 | 1  | name1 |
+| 2 | 3  | name3 |
+
+### Multiple queries:
+
+Multiple queries can be executed and the results can be referenced in the template.
+
+Example queries:
+
+`data_one`:
+```sql
+SELECT id, name from table1;
+```
+
+`data_two`:
+```sql
+SELECT id, name from table2;
+```
+
+Excel Template:
+
+|   | A  | B  |
+|---|----|----|
+| 1 | ?data_one[0].id | ?data_one[0].name |
+| 2 | ?data_two[2].id | ?data_two[2].name |
+
+Given this data:
+
+`data_one`:
+| id | name |
+|----|----|
+| 1 | name1 |
+| 2 | name2 |
+| 3 | name3 |
+
+`data_two`:
+| id | name |
+|----|----|
+| 1 | name1 |
+| 2 | name2 |
+| 3 | name3 |
+
+Resulting in:
+
+|   | A  | B  |
+|---|----|----|
+| 1 | 1  | name1 |
+| 2 | 3  | name3 |
+
+### Multiple sheets with iterative rows:
+
+Multiple sheets can have also reference to iterative rows of data.
+
+Example queries:
+
+`data_one`:
+```sql
+SELECT id, name from table1;
+```
+
+`data_two`:
+```sql
+SELECT id, name from table2;
+```
+
+Excel Template:
+
+Sheet1:
+|   | A  | B  |
+|---|----|----|
+| 1 | ?data_one.id | ?data_one.name |
+
+Sheet2:
+|   | A  | B  |
+|---|----|----|
+| 1 | ?data_two.id | ?data_two.name |
+
+Given this data:
+
+`data_one`:
+| id | name |
+|----|----|
+| 1 | name1 |
+| 2 | name2 |
+| 3 | name3 |
+
+`data_two`:
+| id | name |
+|----|----|
+| 1 | name2-1 |
+| 2 | name2-2 |
+| 3 | name2-3 |
+
+Resulting in:
+
+Sheet1:
+|   | A  | B  |
+|---|----|----|
+| 1 | 1  | name1 |
+| 2 | 2  | name2 |
+| 3 | 3  | name3 |
+
+Sheet2:
+|   | A  | B  |
+|---|----|----|
+| 1 | 1  | name2-1 |
+| 2 | 2  | name2-2 |
+| 3 | 3  | name2-3 |
+
+### Iterative rows with formulas and styles
+
+When rows are copied down, all styles and formulas are copied down as well.  Query references will be copied down as above, and formulas will be copied down with references copied down relatively.  This is done as an insert operation, so rows below the copied down rows will be pushed down.
+
+Example Query:
+`data`:
+```sql
+SELECT id, name from table1;
+```
+
+Excel Template:
+
+|   | A  | B  | C  |
+|---|----|----|----|
+| 1 | ?data.id | ?data.name | =A1+B1 |
+
+Given this data:
+
+| id | name |
+|----|----|
+| 1 | name1 |
+| 2 | name2 |
+| 3 | name3 |
+
+Resulting in:
+
+|   | A  | B  | C  |
+|---|----|----|----|
+| 1 | 1  | name1 | =A1+B1 |
+| 2 | 2  | name2 | =A2+B2 |
+| 3 | 3  | name3 | =A3+B3 |
+
+
+### Variablized Queries
+
+Variables can be used in queries to parameterize the queries.  This allows for dynamic queries that can be used to populate the workbook with data from the queries.
+
+Example Query:
+`data`:
+```sql
+SELECT id, name from table1 where id = ?id;
+```
+
+Excel Template:
+
+|   | A  | B  |
+|---|----|----|
+| 1 | ?data.id | ?data.name |
+
+Given this data:
+
+| id | name |
+|----|----|
+| 1 | name1 |
+| 2 | name2 |
+| 3 | name3 |
+
+Resulting in:
+
+|   | A  | B  |
+|---|----|----|
+| 1 | 1  | name1 |
+| 2 | 2  | name2 |
+| 3 | 3  | name3 |

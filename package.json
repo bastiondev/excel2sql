@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "sql.js": "^1.13.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "xlsx-style": "^0.8.13"
   }
 }

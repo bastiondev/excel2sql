@@ -6,7 +6,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as XLSX from 'xlsx';
+import { Workbook } from 'exceljs';
 import { workbookToSql } from '../src/WorkbookToSql';
 
 // Define the directory paths
@@ -14,10 +14,11 @@ const CASES_DIR = path.join(__dirname, 'cases/toSql');
 const WORKBOOKS_DIR = path.join(__dirname, 'workbooks/toSql');
 
 // Helper function to load a workbook
-function loadWorkbook(filename: string): XLSX.WorkBook {
+async function loadWorkbook(filename: string): Promise<Workbook> {
   const filePath = path.join(WORKBOOKS_DIR, filename);
-  const fileData = fs.readFileSync(filePath);
-  return XLSX.read(fileData, { type: 'buffer' });
+  const workbook = new Workbook();
+  await workbook.xlsx.readFile(filePath);
+  return workbook;
 }
 
 // Dynamically load and run all test cases
@@ -36,7 +37,7 @@ describe('workbookToSql', () => {
     test(`should correctly process ${testName} workbook`, async () => {
       // Load the workbook
       const workbookPath = `${testName}.xlsx`;
-      const workbook = loadWorkbook(workbookPath);
+      const workbook = await loadWorkbook(workbookPath);
       
       // Run workbookToSql with the templates
       const results = workbookToSql(workbook, testCase.templates);

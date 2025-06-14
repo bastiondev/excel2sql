@@ -6,7 +6,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as XLSX from 'xlsx';
+import { Workbook, Cell } from 'exceljs';
 import { sqlToWorkbook } from '../src/SqlToWorkbook';
 
 // Define the directory paths
@@ -14,51 +14,53 @@ const CASES_DIR = path.join(__dirname, 'cases/toExcel');
 const WORKBOOKS_DIR = path.join(__dirname, 'workbooks/toExcel');
 
 // Helper function to load a workbook
-function loadWorkbook(filename: string): XLSX.WorkBook {
+async function loadWorkbook(filename: string): Promise<Workbook> {
   const filePath = path.join(WORKBOOKS_DIR, filename);
-  const fileData = fs.readFileSync(filePath);
-  return XLSX.read(fileData, { type: 'buffer', cellStyles: true });
+  const workbook = new Workbook();
+  await workbook.xlsx.readFile(filePath);
+  return workbook;
 }
 
 // Helper function to compare workbooks
-function compareWorkbooks(actual: XLSX.WorkBook, expected: XLSX.WorkBook): void {
-  // Compare sheets
-  expect(Object.keys(actual.Sheets)).toEqual(Object.keys(expected.Sheets));
-
+function compareWorkbooks(actual: Workbook, expected: Workbook): void {
+  // Compare sheet names
+  expect(actual.worksheets.map(ws => ws.name)).toEqual(expected.worksheets.map(ws => ws.name));
+  
   // Compare each sheet
-  for (const sheetName of Object.keys(actual.Sheets)) {
-    const actualSheet = actual.Sheets[sheetName];
-    const expectedSheet = expected.Sheets[sheetName];
+  for (const actualSheet of actual.worksheets) {
+    const expectedSheet = expected.getWorksheet(actualSheet.name);
+    expect(expectedSheet).toBeTruthy();
+    
 
-    // Compare ranges
-    expect(actualSheet['!ref']).toBe(expectedSheet['!ref']);
-
-    // Compare column widths if present
-    if (actualSheet['!cols'] || expectedSheet['!cols']) {
-      expect(actualSheet['!cols']).toEqual(expectedSheet['!cols']);
-    }
-
-    // Compare cell values
-    const range = XLSX.utils.decode_range(actualSheet['!ref'] || 'A1');
-    for (let r = range.s.r; r <= range.e.r; r++) {
-      for (let c = range.s.c; c <= range.e.c; c++) {
-        const cellAddress = XLSX.utils.encode_cell({ r, c });
-        const actualCell = actualSheet[cellAddress];
-        const expectedCell = expectedSheet[cellAddress];
-
-        if (!actualCell && !expectedCell) continue;
-
+    
+    // Get the range of cells to compare
+    const actualRows = actualSheet.getRows(1, actualSheet.rowCount) || [];
+    const expectedRows = expectedSheet!.getRows(1, expectedSheet!.rowCount) || [];
+    expect(actualRows.length).toEqual(expectedRows.length);
+    
+    // Compare each row
+    for (let r = 0; r < actualRows.length; r++) {
+      const actualRow = actualRows[r];
+      const expectedRow = expectedRows[r];
+      
+      // Compare each cell in the row
+      for (let c = 1; c <= actualSheet.columnCount; c++) {
+        const actualCell = actualRow.getCell(c);
+        const expectedCell = expectedRow.getCell(c);
+        
         // Compare formulas if present
-        if (actualCell?.f || expectedCell?.f) {
-          expect(actualCell?.f).toEqual(expectedCell?.f);
+        if (actualCell.formula || expectedCell.formula) {
+          expect(actualCell.formula).toEqual(expectedCell.formula);
         }
         
         // Compare values if no formula
-        if (!actualCell?.f && !expectedCell?.f) {
-          expect(actualCell?.v).toEqual(expectedCell?.v);
-          expect(actualCell?.t).toEqual(expectedCell?.t);
+        if (!actualCell.formula && !expectedCell.formula) {
+          expect(actualCell.value).toEqual(expectedCell.value);
+          expect(actualCell.type).toEqual(expectedCell.type);
         }
         
+        // Compare styles
+        expect(actualCell.style).toEqual(expectedCell.style);
       }
     }
   }
@@ -81,15 +83,15 @@ describe('sqlToWorkbook', () => {
       // Load the template and expected workbooks
       const templatePath = `${testName}.template.xlsx`;
       const expectedPath = `${testName}.expected.xlsx`;
-      const template = loadWorkbook(templatePath);
-      const expected = loadWorkbook(expectedPath);
+      const template = await loadWorkbook(templatePath);
+      const expected = await loadWorkbook(expectedPath);
       
       // Run sqlToWorkbook with the query results
-      const result = sqlToWorkbook(template, testCase.queryResults);
+      const result = await sqlToWorkbook(template, testCase.queryResults);
       
       // Write debug output
       const debugPath = path.join(WORKBOOKS_DIR, `${testName}.debug.xlsx`);
-      XLSX.writeFile(result, debugPath, {cellStyles: true});
+      await result.xlsx.writeFile(debugPath);
       
       // Compare with expected workbook
       compareWorkbooks(result, expected);

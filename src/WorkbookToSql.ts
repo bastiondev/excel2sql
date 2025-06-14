@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import { Workbook, Worksheet, Cell } from 'exceljs';
 
 /**
  * Regular expression to match cell references in templates
@@ -37,7 +37,7 @@ interface CellRange {
  * @param templates - Array of SQL template strings with cell references
  * @returns Array of generated SQL queries
  */
-export function workbookToSql(workbook: XLSX.WorkBook, templates: string[]): string[] {
+export function workbookToSql(workbook: Workbook, templates: string[]): string[] {
   const results: string[] = [];
   
   // Process each template
@@ -105,7 +105,7 @@ function extractCellReferences(template: string): CellReference[] {
  * @returns Generated SQL query
  */
 function processSingleCellTemplate(
-  workbook: XLSX.WorkBook,
+  workbook: Workbook,
   template: string,
   cellReferences: CellReference[]
 ): string {
@@ -132,7 +132,7 @@ function processSingleCellTemplate(
  * @returns Array of generated SQL queries
  */
 function processRangeTemplate(
-  workbook: XLSX.WorkBook,
+  workbook: Workbook,
   template: string,
   cellReferences: CellReference[]
 ): string[] {
@@ -148,19 +148,15 @@ function processRangeTemplate(
       ranges.push(range);
       
       // Calculate the row count for this range
-      const sheet = workbook.Sheets[ref.sheetName];
-      if (!sheet) continue;
-      
-      if (ref.isOpenRange) {
-        // For open ranges, find the last row with data
-        const lastRow = findLastRowInColumn(sheet, range.startCol);
-        range.endRow = lastRow;
-        const rowCount = lastRow - range.startRow + 1;
-        maxRowCount = Math.max(maxRowCount, rowCount);
-      } else if (range.endRow) {
-        // For closed ranges, use the specified end row
-        const rowCount = range.endRow - range.startRow + 1;
-        maxRowCount = Math.max(maxRowCount, rowCount);
+      if (range.isOpenRange) {
+        const sheet = workbook.getWorksheet(ref.sheetName);
+        if (sheet) {
+          const lastRow = findLastRowInColumn(sheet, range.startCol);
+          range.endRow = lastRow;
+          maxRowCount = Math.max(maxRowCount, lastRow - range.startRow + 1);
+        }
+      } else if (range.endRow !== undefined) {
+        maxRowCount = Math.max(maxRowCount, range.endRow - range.startRow + 1);
       }
     }
   }
@@ -278,20 +274,16 @@ function getCellId(colIndex: number, rowIndex: number): string {
  * @param colIndex - Column index (0-based)
  * @returns Last row index with data (0-based)
  */
-function findLastRowInColumn(sheet: XLSX.WorkSheet, colIndex: number): number {
+function findLastRowInColumn(sheet: Worksheet, colIndex: number): number {
   let lastRow = 0;
-  const colLetter = getCellId(colIndex, 0).replace(/\d+/, '');
   
-  // Iterate through all cells in the sheet
-  const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:A1');
-  for (let r = range.s.r; r <= range.e.r; r++) {
-    const cellAddress = `${colLetter}${r + 1}`;
-    const cell = sheet[cellAddress];
-    
-    if (cell && cell.v !== undefined && cell.v !== null) {
-      lastRow = Math.max(lastRow, r);
+  // Iterate through all rows in the sheet
+  sheet.eachRow((row, rowNumber) => {
+    const cell = row.getCell(colIndex + 1); // ExcelJS uses 1-based column indices
+    if (cell.value !== null && cell.value !== undefined) {
+      lastRow = Math.max(lastRow, rowNumber - 1); // Convert to 0-based index
     }
-  }
+  });
   
   return lastRow;
 }
@@ -304,14 +296,15 @@ function findLastRowInColumn(sheet: XLSX.WorkSheet, colIndex: number): number {
  * @param cellId - Cell ID (e.g., 'A1')
  * @returns Cell value as string
  */
-function getCellValue(workbook: XLSX.WorkBook, sheetName: string, cellId: string): any {
-  const sheet = workbook.Sheets[sheetName];
+function getCellValue(workbook: Workbook, sheetName: string, cellId: string): any {
+  const sheet = workbook.getWorksheet(sheetName);
   if (!sheet) return '';
   
-  const cell = sheet[cellId];
+  const coords = parseCellCoordinates(cellId);
+  const cell = sheet.getRow(coords.row + 1).getCell(coords.col + 1); // ExcelJS uses 1-based indices
   if (!cell) return '';
   
-  return cell.v;
+  return cell.value;
 }
 
 /**

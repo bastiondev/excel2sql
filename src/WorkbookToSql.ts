@@ -1,4 +1,4 @@
-import { Workbook, Worksheet, Cell } from 'exceljs';
+import { Workbook, Worksheet } from 'exceljs';
 
 /**
  * Regular expression to match cell references in templates

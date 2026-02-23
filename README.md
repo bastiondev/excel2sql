@@ -1,6 +1,52 @@
 # Excel2SQL
 
-Excel2SQL is a transformer for populating Excel workbooks from SQL queries and generating SQL queries from Excel workbooks.
+Excel2SQL is a TypeScript library for translating Excel workbooks to and from SQL queries. It works in both Node.js and browser environments.
+
+## Installation
+
+```bash
+npm install excel2sql
+```
+
+## Quick Start
+
+```typescript
+import { workbookToSql, sqlToWorkbook } from 'excel2sql';
+```
+
+### Workbook → SQL
+
+Generate SQL INSERT statements from an Excel workbook using a templated query:
+
+```typescript
+import { Workbook } from 'exceljs';
+
+const workbook = new Workbook();
+await workbook.xlsx.readFile('path/to/workbook.xlsx');
+
+const sql = workbookToSql(workbook, [
+  "INSERT INTO table1 (col1, col2) VALUES ('<Sheet1>!A1:', '<Sheet1>!B1:');"
+]);
+```
+
+### SQL → Workbook
+
+Populate an Excel template with data from SQL queries:
+
+```typescript
+import { Workbook } from 'exceljs';
+
+const template = new Workbook();
+await template.xlsx.readFile('path/to/template.xlsx');
+
+const result = await sqlToWorkbook(template, {
+  data: [{ id: 1, name: 'name1' }, { id: 2, name: 'name2' }]
+});
+
+await result.xlsx.writeFile('path/to/output.xlsx');
+```
+
+---
 
 ## Workbooks to SQL
 

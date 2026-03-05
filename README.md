@@ -173,8 +173,6 @@ INSERT INTO monthly_sales (month, amount) VALUES ('Apr', '1100');
 
 #### 1.3.7 Real-World: Employee Roster Management
 
-An HR team maintains the canonical employee roster in Excel. The workbook is the source of truth — new hires are added as new rows and existing records are corrected in place. Each sync pushes the current state into the database using `INSERT ... ON CONFLICT ... UPDATE`, so the same workbook handles both initial creation and ongoing corrections.
-
 **Employees**:
 
 |   | A (EmpID) | B (FirstName) | C (LastName) | D (Email)              | E (StartDate) | F (Status) |
@@ -216,8 +214,6 @@ SET first_name  = EXCLUDED.first_name,
 -- ... (2 more statements for E1002, E1003)
 ```
 
-If Jane later changes her last name or email in the spreadsheet, the next sync updates her row in the database rather than failing on a duplicate key.
-
 Template 2 — Upsert department assignments (conflict on `emp_id`):
 ```sql
 INSERT INTO dept_assignments (emp_id, dept_code, manager_id, location_code)
@@ -239,11 +235,7 @@ SET dept_code     = EXCLUDED.dept_code,
 -- ... (2 more statements for E1002, E1003)
 ```
 
-When Carlos transfers from Marketing to Engineering, the HR team simply edits his row in the **Assignments** sheet and re-syncs.
-
 #### 1.3.8 Real-World: Mixed Single-Cell and Range References (Budget Management)
-
-A finance team manages quarterly budgets in Excel. The **Config** sheet holds reporting metadata, and **LineItems** holds the detail rows. Each budget line is uniquely identified by the combination of fiscal year, quarter, cost center, and GL code. Re-syncing the same workbook after edits updates existing entries and inserts new ones.
 
 **Config**:
 
@@ -285,11 +277,7 @@ SET period_start = EXCLUDED.period_start,
 -- ... (3 more statements for CC-100/5200, CC-200/5100, CC-200/6100)
 ```
 
-When the finance team revises the cloud hosting budget from $25,000 to $28,000, they edit cell C1 and re-sync. The existing row is updated in place.
-
 #### 1.3.9 Real-World: Product Catalog Management
-
-A merchandising team manages the product catalog in Excel. The workbook is the authoritative source for pricing, descriptions, and availability. New products are added as rows; existing products are edited in place. Each sync ensures the database matches the spreadsheet.
 
 **Products**:
 
@@ -325,11 +313,7 @@ SET name           = EXCLUDED.name,
 -- ... (3 more statements for SKU-10053, SKU-88712, SKU-55190)
 ```
 
-To discontinue a product, the team sets its **Active** column to `false` and re-syncs — no separate DELETE workflow needed. To adjust a price, they edit the cell directly. The workbook always reflects the intended state of the catalog.
-
 #### 1.3.10 Real-World: Customer Account Management
-
-An operations team manages customer accounts in a workbook. Accounts can be created, updated, suspended, or closed — all by editing rows and re-syncing. The `status` column drives the account lifecycle.
 
 **Accounts**:
 
@@ -363,11 +347,7 @@ SET company_name  = EXCLUDED.company_name,
 -- ... (3 more statements for ACC-9045, ACC-9102, ACC-9200)
 ```
 
-To suspend an account, the team changes its **Status** cell to `suspended`. To reactivate, they set it back to `active`. To upgrade a tier, they edit the **Tier** cell. Every lifecycle action is an edit-and-sync — the workbook is the single pane of control.
-
 #### 1.3.11 Real-World: Monthly Metrics Pivot (Column Iteration)
-
-A reporting team maintains monthly KPIs in a pivot-style layout where months run across columns. Each metric row is a separate database record per month.
 
 **Metrics**:
 
@@ -398,8 +378,6 @@ SET revenue       = EXCLUDED.revenue,
     churn_rate    = EXCLUDED.churn_rate;
 -- ... (5 more statements for 2026-02 through 2026-06)
 ```
-
-Column iteration naturally handles pivot-style layouts where the data axis runs horizontally. The pipe delimiter `|` signals that iteration advances across columns rather than down rows.
 
 ---
 
@@ -612,8 +590,6 @@ The `?id` parameter is supplied at execution time. If `?id = 2`, only the matchi
 
 #### 2.3.8 Real-World: Sales Report with Summary and Detail
 
-A monthly sales report workbook has a **Summary** sheet with headline figures and a **Detail** sheet with line-level transactions.
-
 Query `summary`:
 ```sql
 SELECT
@@ -659,11 +635,9 @@ ORDER BY o.order_date;
 | 1 | Order ID        | Customer             | Date               | Amount         | Status         | Running Total      |
 | 2 | ?detail.order_id | ?detail.company_name | ?detail.order_date | ?detail.amount | ?detail.status | =SUM($D$2:D2)     |
 
-Given result data, **Detail** expands row 2 for each transaction. The `=SUM($D$2:D2)` formula adjusts to `=SUM($D$2:D3)`, `=SUM($D$2:D4)`, etc., producing a running total. Row 1 (the header) is static and remains in place.
+**Detail** expands row 2 for each transaction. The `=SUM($D$2:D2)` formula adjusts to `=SUM($D$2:D3)`, `=SUM($D$2:D4)`, etc., producing a running total. Row 1 (the header) is static.
 
 #### 2.3.9 Real-World: Multi-Sheet Inventory Report
-
-A warehouse workbook reports inventory by location. Each warehouse gets its own sheet populated from the same parameterized query.
 
 Query `inv_nyc`:
 ```sql
@@ -695,11 +669,9 @@ ORDER BY product_name;
 | 1 | SKU          | Product              | On Hand             | Reorder Point         | Unit Cost        | Inventory Value            |
 | 2 | ?inv_chi.sku | ?inv_chi.product_name | ?inv_chi.qty_on_hand | ?inv_chi.reorder_point | ?inv_chi.unit_cost | =C2*E2                   |
 
-Each sheet independently expands its iterative row. The `=C2*E2` formula on each row adjusts to match the new row number (`=C3*E3`, `=C4*E4`, etc.).
+Each sheet independently expands its iterative row. The `=C2*E2` formula adjusts to match the new row number (`=C3*E3`, `=C4*E4`, etc.).
 
 #### 2.3.10 Real-World: Mixed Direct and Iterative References on One Sheet
-
-A customer statement uses direct references for the customer header and iterative references for the transaction detail.
 
 Query `customer`:
 ```sql
@@ -727,11 +699,9 @@ ORDER BY txn_date;
 | 5 | Date                      | Description                  | Debit | Credit |
 | 6 | ?transactions.txn_date    | ?transactions.description    | ?transactions.debit | ?transactions.credit |
 
-Rows 1–5 are static (direct references fill in-place). Row 6 is iterative — it expands downward once per transaction row. The header rows remain pinned at the top.
+Rows 1–5 are static (direct references fill in-place). Row 6 is iterative — it expands downward once per result row.
 
 #### 2.3.11 Real-World: Parameterized Query for Dynamic Filtering
-
-The same mapping definition can serve different contexts by varying query parameters at runtime.
 
 Query `team_members`:
 ```sql
@@ -741,7 +711,7 @@ WHERE dept_code = ?dept AND location_code = ?location
 ORDER BY hire_date;
 ```
 
-With parameters `?dept = 'ENG'` and `?location = 'NYC'`, the query returns engineering staff in New York. The same template can be reused for any department/location combination without modifying the mapping.
+With parameters `?dept = 'ENG'` and `?location = 'NYC'`, the query returns engineering staff in New York.
 
 **Roster** sheet template:
 
@@ -751,8 +721,6 @@ With parameters `?dept = 'ENG'` and `?location = 'NYC'`, the query returns engin
 | 2 | ?team_members.emp_id | ?team_members.full_name | ?team_members.role | ?team_members.hire_date |
 
 #### 2.3.12 Real-World: Processing Order and Footer Rows
-
-Because references are processed top-to-bottom (rule 5), iterative expansions push all content below them downward. This allows footer rows with summary formulas or direct references to appear after an iterative region — they will end up in the correct position regardless of how many rows are inserted.
 
 Query `line_items`:
 ```sql
@@ -788,11 +756,9 @@ Processing sequence:
 2. Row 5: Iterative region expands — if the query returns 4 rows, rows 5–8 become detail lines. The original rows 6–9 (spacer and footer) shift down by 3 (4 inserted rows minus the 1 template row).
 3. Rows 9–12 (shifted): Direct references in the footer resolve at their new positions.
 
-The footer always lands immediately below the last detail row, no matter how many line items the invoice has. The template author does not need to pre-calculate the offset — the engine handles it during top-to-bottom processing.
+The footer lands immediately below the last detail row regardless of how many rows are inserted — the engine handles shifting during top-to-bottom processing.
 
 #### 2.3.13 Real-World: Monthly KPI Dashboard (Column Iteration)
-
-A dashboard workbook presents monthly metrics in a pivot-style layout — months run across columns, metrics run down rows. The query returns one row per month, but the workbook needs columns per month.
 
 Query `monthly_kpis`:
 ```sql
@@ -829,7 +795,7 @@ Output (column B is the template column; it expands rightward into B–E):
 | 3 | New Customers  | 120   | 135   | 142   | 128   |
 | 4 | Churn Rate     | 0.030 | 0.025 | 0.028 | 0.031 |
 
-The `|` suffix on each reference tells the engine to iterate across columns instead of down rows. Column A (static labels) remains untouched — only the template column (B) is replicated. Any formulas or styles on the template column would be copied rightward with relative column adjustment.
+Column A (static labels) remains untouched — only the template column (B) is replicated. Formulas or styles on the template column are copied rightward with relative column adjustment.
 
 ---
 
